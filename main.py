@@ -3,7 +3,7 @@ import shutil
 import glob
 import re
 
-# 1. Ask the user the path of the folder of the TV series to work on
+# 1. Ask the user the path of the TV series folder
 folder_path = input("Please enter the path of the TV series folder: ")
 
 # 2. Rename all folders and move misplaced files
@@ -12,7 +12,7 @@ for dirpath, dirnames, filenames in os.walk(folder_path):
         # Keep the part before and including EXX (where XX are digits), ignoring case
         match = re.match(r"(.*E\d{2})", dirname, re.IGNORECASE)
         if match:
-            new_name = match.group(1)
+            new_name = match.group(1).title()  # standardize the folder names to title case
             os.rename(os.path.join(dirpath, dirname), os.path.join(dirpath, new_name))
 
 # Move .mkv files from root to episode-specific folders
@@ -21,8 +21,8 @@ for filename in root_files:
     if filename.lower().endswith(".mkv"):
         match = re.match(r"(.*E\d{2})", filename, re.IGNORECASE)
         if match:
-            new_name = match.group(1)
-            new_dir = os.path.join(folder_path, new_name)
+            new_name = match.group(1).title()
+            new_dir = os.path.join(folder_path,_name)
             if not os.path.exists(new_dir):
                 os.makedirs(new_dir)
             shutil.move(os.path.join(folder_path, filename), os.path.join(new_dir, filename))
@@ -54,3 +54,18 @@ for dirpath, dirnames, filenames in os.walk(folder_path):
         # c. Remove "Subs" folder if it exists
         if os.path.exists(sub_folder):
             shutil.rmtree(sub_folder)
+
+# Remove remaining .srt files and "Subs" folders in the root folder
+for item in os.listdir(folder_path):
+    item_path = os.path.join(folder_path, item)
+    if os.path.isdir(item_path) and item.lower() == "subs":
+        shutil.rmtree(item_path)
+    elif os.path.isfile(item_path) and item.lower().endswith(".srt"):
+        os.remove(item_path)
+
+# Remove all empty directories
+for dirpath, dirnames, filenames in os.walk(folder_path):
+    for dirname in dirnames:
+        dir_fullpath = os.path.join(dirpath, dirname)
+        if not os.listdir(dir_fullpath):  # check if directory is empty
+            os.rmdir(dir_fullpath)
