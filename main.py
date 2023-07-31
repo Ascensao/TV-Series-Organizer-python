@@ -31,11 +31,13 @@ for filename in root_files:
 for dirpath, dirnames, filenames in os.walk(folder_path):
     for dirname in dirnames:
         episode_folder = os.path.join(dirpath, dirname)
-        subs_folder = os.path.join(episode_folder, "Subs")
+        root_subs_folder = os.path.join(folder_path, "Subs")
+        episode_subs_folder = os.path.join(episode_folder, "Subs")
 
-        # a. If "Subs" folder exists in the episode directory, move the .srt file to the episode folder root
+        # a. If "Subs" folder exists in the root directory or episode directory,
+        #    copy the most recent .srt file to the episode folder root
         #    and rename the .srt file to match the .mkv or .mp4 file
-        if os.path.exists(subs_folder):
+        if os.path.exists(root_subs_folder) or os.path.exists(episode_subs_folder):
             video_files = glob.glob(os.path.join(episode_folder, "*.mkv")) + \
                           glob.glob(os.path.join(episode_folder, "*.mp4"))
             if video_files:
@@ -43,24 +45,26 @@ for dirpath, dirnames, filenames in os.walk(folder_path):
                 video_match = re.match(r"(.*S\d{2}E\d{2})", video_file_name, re.IGNORECASE)
                 if video_match:
                     video_SE = video_match.group(1)
-                    srt_files = glob.glob(os.path.join(subs_folder, "*"+video_SE+"*.srt"))
+                    srt_files = glob.glob(os.path.join(root_subs_folder, "*"+video_SE+"*.srt")) + \
+                                glob.glob(os.path.join(episode_subs_folder, "*"+video_SE+"*.srt"))
                     if srt_files:
-                        srt_file = srt_files[0]  # Choose the first .srt file that matches the pattern
-                        shutil.move(srt_file, os.path.join(episode_folder, video_file_name + ".srt"))
+                        # Choose the most recent .srt file
+                        newest_srt = max(srt_files, key=os.path.getmtime)
+                        shutil.copy(newest_srt, os.path.join(episode_folder, video_file_name + ".srt"))
+                        os.remove(newest_srt)
 
-            # Remove the "Subs" folder
-            shutil.rmtree(subs_folder)
+# b. Remove all files except .srt, .mkv, or .mp4
+for dirpath, dirnames, filenames in os.walk(folder_path):
+    for filename in filenames:
+        if not (filename.lower().endswith(".srt") or filename.lower().endswith(".mkv") or filename.lower().endswith(".mp4")):
+            os.remove(os.path.join(dirpath, filename))
 
-        # b. Remove all files except .srt, .mkv, or .mp4
-        for root, dirs, files in os.walk(episode_folder):
-            for file in files:
-                if not (file.lower().endswith(".srt") or file.lower().endswith(".mkv") or file.lower().endswith(".mp4")):
-                    os.remove(os.path.join(root, file))
-
-# Remove remaining .srt files in the root folder
+# Remove remaining .srt files and "Subs" folders in the root folder
 for item in os.listdir(folder_path):
     item_path = os.path.join(folder_path, item)
-    if os.path.isfile(item_path) and item.lower().endswith(".srt"):
+    if os.path.isdir(item_path) and item.lower() == "subs":
+        shutil.rmtree(item_path)
+    elif os.path.isfile(item_path) and item.lower().endswith(".srt"):
         os.remove(item_path)
 
 # Remove all empty directories
